@@ -1,11 +1,17 @@
 # FeedforwardNeuralNetwork
 **手搓神经网络**
 
+## 简介：
+
 我的实习实训作业。利用numpy库手动实现了全连接BP神经网络。
 
 ActivationMethods.py、LossMethods.py、FeedforwardNeuralNetwork.py共同实现了我的神经网络。
 
 TestRegression.py调用了上述神经网络来拟合y=x²，作为检验。Results文件夹中保存了训练次数为10000时的训练、拟合结果。
+
+## 环境：
+
+python 3.8.10
 
 ## 实现原理：
 
