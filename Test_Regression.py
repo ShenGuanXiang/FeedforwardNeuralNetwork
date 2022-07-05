@@ -18,7 +18,7 @@ myNN.train(train_input_data, train_output_data, train_times=2000, visualize=True
 
 # 测试神经网络时均匀选取[-15,15]间的900个点
 test_input_data = np.linspace(start=-15, stop=15, num=900)
-test_output_data = myNN.test(test_input_data, dump_dir="Results\\Regression_Test_Result.txt")
+test_output_data = myNN.test(test_input_data, dump_dir="Results/Regression_Test_Result.txt")
 
 # 画图对比真实曲线和拟合曲线
 plt.figure()

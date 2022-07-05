@@ -8,23 +8,6 @@ import LossMethods
 import matplotlib.pyplot as plt
 
 
-def mydot(a: np.ndarray, b: np.ndarray):
-    """
-    重写numpy矩阵乘法，如果输入矩阵是三维的，会取该矩阵沿axis=0得到的每一个矩阵进行乘法，得到的结果是一个三维矩阵
-    这个方法应用于正&反向传播，有助于实现批量训练
-    """
-    if a.ndim <= 2 and b.ndim <= 2:
-        return np.dot(a, b)
-    if a.ndim == 2 and b.ndim == 3:
-        return np.array([np.dot(a, b[i]) for i in range(b.shape[0])])
-    if a.ndim == 3 and b.ndim == 2:
-        return np.array([np.dot(a[i], b) for i in range(a.shape[0])])
-    if a.ndim == 3 and b.ndim == 3:
-        assert a.shape[0] == b.shape[0]
-        return np.array([np.dot(a[i], b[i]) for i in range(a.shape[0])])
-    raise ValueError
-
-
 class MyNeuralNetwork:
 
     def __init__(self, input_dim: int, hidden_dims: list, output_dim: int, activation_method="relu", loss_method="mse",
@@ -78,14 +61,14 @@ class MyNeuralNetwork:
         # 在下面的代码中，各个样本的节点数据是同时计算的
         # 输入层->隐藏层
         self.input_layer[np.arange(x.shape[0]), :, :] = copy.deepcopy(x)
-        self.hidden_layers_in[0] = mydot(self.w[0], self.input_layer) + self.b[0]
+        self.hidden_layers_in[0] = np.matmul(self.w[0], self.input_layer) + self.b[0]
         self.hidden_layers_out[0] = eval(self.activation_method)(self.hidden_layers_in[0])
         # 隐藏层间传播
         for i in range(1, self.depth):
-            self.hidden_layers_in[i] = mydot(self.w[i], self.hidden_layers_out[i - 1]) + self.b[i]
+            self.hidden_layers_in[i] = np.matmul(self.w[i], self.hidden_layers_out[i - 1]) + self.b[i]
             self.hidden_layers_out[i] = eval(self.activation_method)(self.hidden_layers_in[i])
         # 隐藏层->输出层
-        self.output_layer = mydot(self.w[self.depth], self.hidden_layers_out[self.depth - 1]) + self.b[self.depth]
+        self.output_layer = np.matmul(self.w[self.depth], self.hidden_layers_out[self.depth - 1]) + self.b[self.depth]
         return self.output_layer[np.arange(x.shape[0]), :, :]
 
     def backpropagation(self, y_true: np.ndarray):
@@ -97,22 +80,22 @@ class MyNeuralNetwork:
         # 输出层->隐藏层
         grads = eval(self.loss_derivative_method)(self.output_layer, y_true)  # 首先是损失函数求导
         old_w = copy.deepcopy(self.w[self.depth])
-        dws = mydot(self.hidden_layers_out[self.depth - 1], grads).transpose((0, 2, 1))
-        self.w[-1] -= self.learning_rate * (np.mean(dws, axis=0) + self.l2_lambda * self.w[-1])
+        grads_w = np.matmul(self.hidden_layers_out[self.depth - 1], grads).transpose((0, 2, 1))
+        self.w[-1] -= self.learning_rate * (np.mean(grads_w, axis=0) + self.l2_lambda * self.w[-1])
         self.b[-1] -= self.learning_rate * (np.mean(grads.transpose((0, 2, 1)), axis=0) + self.l2_lambda * self.b[-1])
-        grads = mydot(grads, old_w)  # 层间全连接求导
+        grads = np.matmul(grads, old_w)  # 层间全连接求导
         # 隐藏层间传播
         for i in range(self.depth - 1, 0, -1):
-            grads = mydot(grads, eval(self.activation_derivative_method)(self.hidden_layers_in[i]))  # 激活函数求导
+            grads = np.matmul(grads, eval(self.activation_derivative_method)(self.hidden_layers_in[i]))  # 激活函数求导
             old_w = copy.deepcopy(self.w[i])  # old_w用来保存该处旧的权重矩阵，因为继续反向传播时需要用到wi，但在这之前wi被更新了
-            dws = mydot(self.hidden_layers_out[i - 1], grads).transpose((0, 2, 1))  # 计算各个样本的损失函数对该处权重矩阵的导数矩阵
-            self.w[i] -= self.learning_rate * (np.mean(dws, axis=0) + self.l2_lambda * self.w[i])
+            grads_w = np.matmul(self.hidden_layers_out[i - 1], grads).transpose((0, 2, 1))  # 计算各个样本的损失函数对该处权重矩阵的导数矩阵
+            self.w[i] -= self.learning_rate * (np.mean(grads_w, axis=0) + self.l2_lambda * self.w[i])
             self.b[i] -= self.learning_rate * (np.mean(grads.transpose((0, 2, 1)), axis=0) + self.l2_lambda * self.b[i])
-            grads = mydot(grads, old_w)  # 层间全连接求导
+            grads = np.matmul(grads, old_w)  # 层间全连接求导
         # 隐藏层->输入层
-        grads = mydot(grads, eval(self.activation_derivative_method)(self.hidden_layers_in[0]))
-        dws = mydot(self.input_layer, grads).transpose((0, 2, 1))
-        self.w[0] -= self.learning_rate * (np.mean(dws, axis=0) + self.l2_lambda * self.w[0])
+        grads = np.matmul(grads, eval(self.activation_derivative_method)(self.hidden_layers_in[0]))
+        grads_w = np.matmul(self.input_layer, grads).transpose((0, 2, 1))
+        self.w[0] -= self.learning_rate * (np.mean(grads_w, axis=0) + self.l2_lambda * self.w[0])
         self.b[0] -= self.learning_rate * (np.mean(grads.transpose((0, 2, 1)), axis=0) + self.l2_lambda * self.b[0])
 
     def train(self, input_data, output_data, train_times=100, visualize=False):
